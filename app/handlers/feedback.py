@@ -1,18 +1,13 @@
 from aiogram.dispatcher.filters import Text
 from aiogram import types, Dispatcher
-import pandas as pd
-from app.database.database import insert_feedback
-
-import bot
+#from app.database.database import insert_feedback
+import app.database.database as db
 
 
-path_csv = "./feedbacks.csv"
-
-
-def get_keyboard():
+def get_inline_keyboard():
     buttons = [
-        types.InlineKeyboardButton(text="Отправить", callback_data="fb_send"),
-        types.InlineKeyboardButton(text="Не отправлять", callback_data="fb_cancel")
+        types.InlineKeyboardButton(text="\u2709 Отправить", callback_data="fb_send"),
+        types.InlineKeyboardButton(text="\u274c Не отправлять", callback_data="fb_cancel")
     ]
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     keyboard.add(*buttons)
@@ -32,7 +27,7 @@ async def receiving_feedback(message: types.Message):
         await message.answer(f"Сообщение не может быть больше {message_length['max']} символов.")
         return
     feedback_text.update(mes=f"Сообщение разработчикам: {fb_text}", fb_text=fb_text)
-    await message.answer(feedback_text['mes'], reply_markup=get_keyboard())
+    await message.answer(feedback_text['mes'], reply_markup=get_inline_keyboard())
 
 
 async def send_feedback(call: types.CallbackQuery):
@@ -46,17 +41,10 @@ async def send_feedback(call: types.CallbackQuery):
         return
     elif action == "send":
         await call.message.answer("Сообщение передано разработчикам.")
-        #await bot.send_feedback_to_admin(call.from_user.id, call.from_user.username, fb_text)
         
-      
-# def save_feedback(username, user_id, fb_text, action):
-#     data = [username, user_id, fb_text, action]
-#     column_names = ['username', 'user_id', 'feedback_message', 'action']
-#     df = pd.DataFrame([data], columns=column_names)
-#     df.to_csv(path_csv, mode='a', encoding="utf-8-sig")
 
 def save_feedback(user_id, username, fb_text, action):
-    insert_feedback(user_id, username, fb_text, action)
+    db.insert_feedback(user_id, username, fb_text, action)
 
 
 def register_handlers_feedback(dp: Dispatcher):

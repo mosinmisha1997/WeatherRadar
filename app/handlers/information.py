@@ -24,5 +24,5 @@ async def cmd_information(message: types.Message):
 
 
 def register_handlers_info(dp: Dispatcher):
-    dp.register_message_handler(cmd_information, commands=['start', 'info'], state="*")
+    #dp.register_message_handler(cmd_information, commands=['start', 'info'], state="*")
     dp.register_message_handler(cmd_information, Text(equals="Информация", ignore_case=True), state="*")

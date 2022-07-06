@@ -11,21 +11,22 @@ from aiogram.dispatcher.filters.builtin import IDFilter
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import user
 from aiogram.utils.callback_data import CallbackData
-from app.database.database import delete_feedback, select_feedbacks
+import app.database.database as db
+import app.handlers.check_weather as check_weather
+import app.handlers.common as common
 import app.handlers.feedback as feedback
-
-from app.handlers.subscriptions import register_handlers_subs
-from app.handlers.current_weather import register_handlers_city
-from app.handlers.information import register_handlers_info
-from app.scheduler.user_actions import scheduler_on_startup
+import app.handlers.settings as settings
+import app.scheduler.notifications as notifications
 
 
 logging.basicConfig(level=logging.INFO)
 
 
 # Стартовая настрока бота
-admin_id = getenv("ADMIN_ID")
-bot_token = getenv("BOT_TOKEN")
+#admin_id = getenv("ADMIN_ID")
+#bot_token = getenv("BOT_TOKEN")
+admin_id = '759409190'
+bot_token = '2103585022:AAGEisLJRANxLiB0E_Q8Ml5ar_fZKD5M9Xo'
 if not bot_token:
     exit('Ошибка: токен не найден')
 bot = Bot(token=bot_token, parse_mode=types.ParseMode.HTML)
@@ -34,17 +35,9 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 
 async def on_startup(dp):
     bot_commands = [
-        types.BotCommand("city", "Проверить погоду"),
-        types.BotCommand("subs", "Список отслеживаемых"),
-        types.BotCommand("main", "Главное меню")
+        types.BotCommand("start", "Проверить погоду")
     ]
     await bot.set_my_commands(bot_commands)
-
-@dp.message_handler(commands='cancel', state='*')
-@dp.message_handler(Text(equals='отмена', ignore_case=True), state='*')
-async def cmd_cancel(message: types.Message, state: FSMContext):
-    await state.finish()
-    await message.answer("Действие отменено", reply_markup=types.ReplyKeyboardRemove())
 
 
 @dp.message_handler(commands='main', state='*')
@@ -52,7 +45,7 @@ async def cmd_main(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer(
         "<b>Главное меню.</b>\n\nВыберите действие:", 
-        reply_markup=get_keyboard(["Проверить погоду", "Список отслеживаемых", "Информация"]))
+        reply_markup=common.get_keyboard(["\u26c5 Проверить погоду", "\u2b50 Список отслеживаемых", "\u2139 Информация"]))
 
 
 class AnswerToFeedback(StatesGroup):
@@ -67,7 +60,7 @@ feedback_data = {}
 async def check_feedbacks(message: types.Message, state: FSMContext):
     await state.finish()
     await AnswerToFeedback.waiting_action.set()
-    feedbacks, fb_count = select_feedbacks()
+    feedbacks, fb_count = db.select_feedbacks()
     if len(feedbacks) == 0:
         await message.answer("Обращений не поступало.", reply_markup=types.ReplyKeyboardRemove())
         await state.finish()
@@ -79,12 +72,12 @@ async def check_feedbacks(message: types.Message, state: FSMContext):
         user_id = fback[1]
         username = fback[2]
         buttons = [
-            types.InlineKeyboardButton(text="Ответить", callback_data=fb.new(action='answer', fb_id=fb_id)),
-            types.InlineKeyboardButton(text="Удалить", callback_data=fb.new(action='delete', fb_id=fb_id))
+            types.InlineKeyboardButton(text="\u2705 Ответить", callback_data=fb.new(action='answer', fb_id=fb_id)),
+            types.InlineKeyboardButton(text="\u274e Удалить", callback_data=fb.new(action='delete', fb_id=fb_id))
         ]
         keyboard = types.InlineKeyboardMarkup(row_width=2)
         keyboard.add(*buttons)
-        message_text = f"[FeedBack] <b><u>#{fb_id}</u> От: {username} ({user_id})</b>\n\n{fb_text}"
+        message_text = f"<b>[FeedBack]</b> <b><u>#{fb_id}</u> От: {username} ({user_id})</b>\n\n{fb_text}"
         feedback_data.update({fb_id:{'fb_id':fb_id, 'message':message_text}})
         await state.update_data({fb_id:{'fb_id':fb_id, 'message':message_text, 'fb_text':fb_text, 'user_id':user_id, 'username':username}})
         await message.answer(text=message_text, reply_markup=keyboard)
@@ -108,38 +101,29 @@ async def send_answer_to_user(message: types.Message, state: FSMContext):
     fb_id = feedback_data['fb_id']
     user_id = data[fb_id]['user_id']
     fb_text = data[fb_id]['fb_text']
-    message_text = f"[Answer] От: Admin\n\n<i>Re: {fb_text}</i>\n\nОтвет: {message.text}"
-    delete_feedback(fb_id)
+    message_text = f"<b>[Answer]</b> От: Admin\n\n<i>Re: {fb_text}</i>\n\nОтвет: {message.text}"
+    db.delete_feedback(fb_id)
     await bot.send_message(chat_id=user_id, text=message_text)
-    await message.answer("[BOT] Ответ отправлен. Выйти из фидбека -> /cancel")
-    #await state.finish()
+    await message.answer("<b>[BOT]</b> Ответ отправлен. Выйти из фидбека -> /cancel")
 
 
 @dp.callback_query_handler(fb.filter(action="delete"), state="*")
 async def delete_fb(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
     fb_id = callback_data['fb_id']
-    delete_feedback(fb_id)
-    #await state.finish()
+    db.delete_feedback(fb_id)
     await call.message.delete()
     await call.answer()
 
 
-def get_keyboard(buttons_text = None):
-    buttons = []
-    if buttons_text:
-        for text in buttons_text:
-            buttons.append(types.KeyboardButton(text))
-    buttons.append(types.KeyboardButton('Отмена'))
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    keyboard.add(*buttons)
-    return keyboard
+def get_bot():
+    return bot
 
 
 if __name__ == '__main__':
-    scheduler_on_startup(bot)
-    register_handlers_city(dp)
-    register_handlers_subs(dp)
-    register_handlers_info(dp)
+    notifications.scheduler_on_startup()
+    common.register_handlers_common(dp)
+    check_weather.register_handlers_weather(dp)
+    settings.register_handlers_settings(dp)
     feedback.register_handlers_feedback(dp)
     executor.start_polling(
         dispatcher=dp,
