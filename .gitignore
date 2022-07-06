@@ -133,3 +133,4 @@ tools/
 *.txt
 *.json
 *.db
+test_zone.py

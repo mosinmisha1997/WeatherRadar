@@ -23,10 +23,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 # Стартовая настрока бота
-#admin_id = getenv("ADMIN_ID")
-#bot_token = getenv("BOT_TOKEN")
-admin_id = '759409190'
-bot_token = '2103585022:AAGEisLJRANxLiB0E_Q8Ml5ar_fZKD5M9Xo'
+admin_id = getenv("ADMIN_ID")
+bot_token = getenv("BOT_TOKEN")
 if not bot_token:
     exit('Ошибка: токен не найден')
 bot = Bot(token=bot_token, parse_mode=types.ParseMode.HTML)

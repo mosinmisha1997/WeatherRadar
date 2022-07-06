@@ -1,4 +1,0 @@
-https://openweathermap.org/current - Текущие данные о погоде
-https://www.iso.org/obp/ui/#search - Стандарт кодов стран ISO
-https://geopy.readthedocs.io/en/stable/index.html?highlight=reverse#installation - Реверсивный геокодинг
-https://nominatim.org/release-docs/develop/api/Output/#addressdetails - Типы населенных пунктов
